@@ -6,6 +6,7 @@
 #include "FP.h"
 
 #define ESP_TIMEOUT 2000
+#define PGM_P const char *
 
 // Enumeration of commands supported by esp-link, this needs to match the definition in
 // esp-link!
@@ -15,6 +16,7 @@ typedef enum {
   CMD_RESP_V,       // response with a value
   CMD_RESP_CB,      // response with a callback
   CMD_WIFI_STATUS,  // get the wifi status
+  CMD_SLEEP,        // Go to sleep
   CMD_CB_ADD,       // add a custom callback
   CMD_CB_EVENTS,    // ???
   CMD_GET_TIME,     // get current time in seconds since the unix epoch
@@ -30,7 +32,6 @@ typedef enum {
   CMD_REST_REQUEST,
   CMD_REST_SETHEADER,
   CMD_REST_EVENTS
-
 } CmdName;
 
 enum WIFI_STATUS {
@@ -94,11 +95,14 @@ class STMClient {
     bool Sync(uint32_t timeout=ESP_TIMEOUT);
     // Request the wifi status
     void GetWifiStatus(void);
+    
+    //put the ESP into Deepsleep
+    void Sleep(void);
 
     // Callback for wifi status changes that must be attached before calling Sync
     FP<void, void*> wifiCb;
 
-  //private:
+  private:
     Serial* _serial;
     bool _debugEn;
     uint16_t crc;

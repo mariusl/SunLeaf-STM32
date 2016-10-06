@@ -33,9 +33,8 @@ STMClientPacket* STMClient::protoCompletedCb(void) {
   //_debug->printf("resp_crc: %i\n\r",resp_crc);
   if (crc != resp_crc) {
     DBG("STMC: Invalid CRC\n\r");
-    wait(0.5);
-    
-    //return NULL; maybe the CRC isn't getting calculated correctly...
+    wait(0.25);    
+    return NULL; //maybe the CRC isn't getting calculated correctly...
   }
 
   // dispatch based on command
@@ -65,26 +64,24 @@ STMClientPacket* STMClient::protoCompletedCb(void) {
 // Read all characters available on the serial input and process any messages that arrive, but
 // stop if a non-callback response comes in
 STMClientPacket *STMClient::Process() {
+ int value;
   while (_serial->readable()) {
-    //value =_serial->getc(rxBuffer, 5, eSerialCb, SERIAL_EVENT_RX_ALL, '$');
-    char character=_serial->getc(); 
-    //value = _serial->read();
-    
-    if ((int)character == SLIP_ESC) {
+    value = _serial->getc();
+    if (value == SLIP_ESC) {
       _proto.isEsc = 1;
-    } else if ((int)character == SLIP_END) {
+    } else if (value == SLIP_END) {
       STMClientPacket *packet = _proto.dataLen >= 8 ? protoCompletedCb() : 0;
       _proto.dataLen = 0;
       _proto.isEsc = 0;
       if (packet != NULL) return packet;
     } else {
       if (_proto.isEsc) {
-        if ((int)character == SLIP_ESC_END) character = SLIP_END;
-        if ((int)character == SLIP_ESC_ESC) character = SLIP_ESC;
+        if (value == SLIP_ESC_END) value = SLIP_END;
+        if (value == SLIP_ESC_ESC) value = SLIP_ESC;
         _proto.isEsc = 0;
       }
       if (_proto.dataLen < _proto.bufSize) {
-        _proto.buf[_proto.dataLen++] = (int)character;
+        _proto.buf[_proto.dataLen++] = value;
       }
     }
   }
@@ -112,15 +109,18 @@ void STMClient::write(uint8_t data) {
 // Write some bytes to the output stream
 void STMClient::write(void* data, uint16_t len) {
   uint8_t *d = (uint8_t*)data;
+  //_debug->printf("Writing: 0x%x\n\r", (const char*)data);
   while (len--)
+  {
     write(*d++);
+  }
 }
 
 // Start a request. cmd=command, value=address of callback pointer or first arg,
 // argc=additional argument count
 void STMClient::Request(uint16_t cmd, uint32_t value, uint16_t argc) {
   //_debug->printf("Starting a request...\n\r");
-  //wait(0.5);
+  wait(0.25);
   crc = 0;
   _serial->putc(SLIP_END);
     
@@ -157,10 +157,9 @@ void STMClient::Request(const void* data, uint16_t len) {
     crc = crc16Add(temp, crc);
   }
 }
-
-/* Commented this out for now...
+/*
 // Append a block of data located in flash as an argument to the request
-void STMClient::Request(const __FlashStringHSTMper* data, uint16_t len) {
+void STMClient::Request(const __FlashStringHelper* data, uint16_t len) {
   // write the length
   write(&len, 2);
   crc = crc16Data((unsigned const char*)&len, 2, crc);
@@ -186,6 +185,7 @@ void STMClient::Request(const __FlashStringHSTMper* data, uint16_t len) {
 // Append the final CRC to the request and finish the request
 void STMClient::Request(void) {
   write((uint8_t*)&crc, 2);
+  
   _serial->putc(SLIP_END);
 }
 
@@ -260,7 +260,7 @@ bool STMClient::Sync(uint32_t timeout) {
     if (packet->value == (uint32_t)&wifiCb) 
     { 
     //    _debug->printf("SYNC!");  
-    //    wait(0.5); 
+        wait(0.5); 
         return true; 
     }
     _debug->printf("BAD: %s /n/r", packet->value);
@@ -268,6 +268,12 @@ bool STMClient::Sync(uint32_t timeout) {
   
   // doesn't look like we got a real response
   return false;
+}
+ //look in cmd.c for this. Puts ESP to sleep until a fall edge triggers on RST for it to reset.
+ 
+void STMClient::Sleep(void){
+  Request(CMD_SLEEP, 0, 0);
+  Request();
 }
 
 void STMClient::GetWifiStatus(void) {
