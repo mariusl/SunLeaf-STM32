@@ -1,7 +1,7 @@
 /**
  * Simple example to demo the STM-Client REST calls
  */
-#include "ST_L152_32MHZ.h"
+//#include "ST_L152_32MHZ.h"
 #include "mbed.h"
 #include "DHT.h"
 
